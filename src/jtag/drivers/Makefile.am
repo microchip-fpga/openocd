@@ -204,6 +204,9 @@ endif
 if AM335XGPIO
 DRIVERFILES += %D%/am335xgpio.c
 endif
+if MICROCHIP_FP6
+DRIVERFILES += %D%/mchp_fp6.c
+endif
 
 DRIVERHEADERS = \
 	%D%/bitbang.h \
@@ -221,4 +224,6 @@ DRIVERHEADERS = \
 	%D%/versaloon/usbtoxxx/usbtoxxx_internal.h \
 	%D%/versaloon/versaloon.h \
 	%D%/versaloon/versaloon_include.h \
-	%D%/versaloon/versaloon_internal.h
+	%D%/versaloon/versaloon_internal.h \
+	%D%/mchp_fp.h \
+	%D%/mchp_fp6.h
