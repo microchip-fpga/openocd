@@ -207,6 +207,9 @@ endif
 if MICROCHIP_FP6
 DRIVERFILES += %D%/mchp_fp6.c
 endif
+if MICROCHIP_EFP6
+DRIVERFILES += %D%/mchp_efp6.c
+endif
 
 DRIVERHEADERS = \
 	%D%/bitbang.h \
@@ -226,4 +229,5 @@ DRIVERHEADERS = \
 	%D%/versaloon/versaloon_include.h \
 	%D%/versaloon/versaloon_internal.h \
 	%D%/mchp_fp.h \
-	%D%/mchp_fp6.h
+	%D%/mchp_fp6.h \
+	%D%/mchp_efp6.h

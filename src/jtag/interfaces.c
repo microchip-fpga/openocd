@@ -156,5 +156,8 @@ struct adapter_driver *adapter_drivers[] = {
 #if BUILD_MICROCHIP_FP6 == 1
 		&mchp_fp6_adapter_driver,
 #endif
+#if BUILD_MICROCHIP_EFP6 == 1
+		&mchp_efp6_adapter_driver,
+#endif
 		NULL,
 	};

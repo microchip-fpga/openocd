@@ -404,5 +404,5 @@ extern struct adapter_driver vsllink_adapter_driver;
 extern struct adapter_driver xds110_adapter_driver;
 extern struct adapter_driver xlnx_pcie_xvc_adapter_driver;
 extern struct adapter_driver mchp_fp6_adapter_driver;
-
+extern struct adapter_driver mchp_efp6_adapter_driver;
 #endif /* OPENOCD_JTAG_INTERFACE_H */
