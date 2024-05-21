@@ -210,6 +210,9 @@ endif
 if MICROCHIP_EFP6
 DRIVERFILES += %D%/mchp_efp6.c
 endif
+if MICROCHIP_FP5
+DRIVERFILES += %D%/mchp_ftdi.c
+endif
 
 DRIVERHEADERS = \
 	%D%/bitbang.h \

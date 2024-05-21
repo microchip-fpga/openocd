@@ -349,6 +349,10 @@ AC_ARG_ENABLE([microchip_efp6],
   AS_HELP_STRING([--enable-microchip-efp6], [Enable building support for Microchip embedded FlashPro6 Programmer]),
   [build_microchip_efp6=$enableval], [build_microchip_efp6=no])
 
+AC_ARG_ENABLE([microchip_fp5],
+  AS_HELP_STRING([--enable-microchip-fp5], [Enable building support for Microchip FlashPro5 Programmer]),
+  [build_microchip_fp5=$enableval], [build_microchip_fp5=no])
+
 AS_CASE([$host_os],
   [linux*], [],
   [
@@ -639,6 +643,13 @@ AS_IF([test "x$build_microchip_efp6" = "xyes"], [
   AC_DEFINE([BUILD_MICROCHIP_EFP6], [0], [0 if you don't the Microchip embedded FlashPro6 driver.])
 ])
 
+AS_IF([test "x$build_microchip_fp5" = "xyes"], [
+  build_microchip_fp5=yes
+  AC_DEFINE([BUILD_MICROCHIP_FP5], [1], [1 if you want the Microchip FlashPro5 driver.])
+], [
+  AC_DEFINE([BUILD_MICROCHIP_FP5], [0], [0 if you don't want the Microchip FlashPro5 driver.])
+])
+
 PKG_CHECK_MODULES([LIBUSB1], [libusb-1.0], [
 	use_libusb1=yes
 	AC_DEFINE([HAVE_LIBUSB1], [1], [Define if you have libusb-1.x])
@@ -798,6 +809,7 @@ AM_CONDITIONAL([DMEM], [test "x$build_dmem" = "xyes"])
 AM_CONDITIONAL([HAVE_CAPSTONE], [test "x$enable_capstone" != "xno"])
 AM_CONDITIONAL([MICROCHIP_FP6], [test "x$build_microchip_fp6" = "xyes"])
 AM_CONDITIONAL([MICROCHIP_EFP6], [test "x$build_microchip_efp6" = "xyes"])
+AM_CONDITIONAL([MICROCHIP_FP5], [test "x$build_microchip_fp5" = "xyes"])
 
 AM_CONDITIONAL([INTERNAL_JIMTCL], [test "x$use_internal_jimtcl" = "xyes"])
 AM_CONDITIONAL([INTERNAL_LIBJAYLINK], [test "x$use_internal_libjaylink" = "xyes"])

@@ -918,6 +918,13 @@ COMMAND_HANDLER(ftdi_handle_tdo_sample_edge_command)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(ftdi_init_bank_d_command)
+{
+	extern void interface_d_init(void);
+	interface_d_init();
+	return ERROR_OK;
+}
+
 static const struct command_registration ftdi_subcommand_handlers[] = {
 	{
 		.name = "device_desc",
@@ -978,6 +985,13 @@ static const struct command_registration ftdi_subcommand_handlers[] = {
 			"- default is rising-edge (Setting to falling-edge may "
 			"allow signalling speed increase)",
 		.usage = "(rising|falling)",
+	},
+	{
+		.name = "init_bank_d",
+		.handler = &ftdi_init_bank_d_command,
+		.mode = COMMAND_CONFIG,
+		.help = "for some devices, you may need to initialize bank d",
+		.usage = "init_bank_d"
 	},
 	COMMAND_REGISTRATION_DONE
 };
