@@ -130,6 +130,15 @@ int bscan_tunnel_ir_width; /* if zero, then tunneling is not present/active */
 
 static const uint8_t bscan_zero[4] = {0};
 static const uint8_t bscan_one[4] = {1};
+static const uint8_t bscan_three[4] = {3};
+static const uint8_t bscan_four[4] = {4};
+static const uint8_t bscan_five[4] = {5};
+static const uint8_t bscan_six[4] = {6};
+static const uint8_t bscan_sixteen[4] = {0x10};
+static const uint8_t bscan_seventeen[4] = {0x11};
+static const uint8_t bscan_twenty_seven[4] = {0x1b};
+static const uint8_t bscan_thirty_two[4] = {0x20};
+static const uint8_t bscan_exit[4] = {0x00, 0x36};
 
 static uint8_t ir_user4[4];
 static struct scan_field select_user4 = {
@@ -184,11 +193,69 @@ static struct scan_field _bscan_tunnel_nested_tap_select_dmi[] = {
 			.in_value = NULL,
 		}
 };
+
+static struct scan_field _bscan_tunnel_ujtag_select_dmi1[] = {
+		{
+			.num_bits = 3,
+			.out_value = bscan_four,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 4,
+			.out_value = bscan_three,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 6,
+			.out_value = bscan_five,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 5, /* initialized in riscv_init_target to ir width of DM */
+			.out_value = bscan_seventeen,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 3,
+			.out_value = bscan_one,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 1,
+			.out_value = bscan_zero,
+			.in_value = NULL,
+		},
+};
+
+static struct scan_field _bscan_tunnel_ujtag_select_dmi2[] = {
+		{
+			.num_bits = 9,
+			.out_value = bscan_zero,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 3,
+			.out_value = bscan_three,
+			.in_value = NULL,
+		},
+		{
+			.num_bits = 3,
+			.out_value = bscan_three,
+			.in_value = NULL,
+		},
+};
+
 static struct scan_field *bscan_tunnel_nested_tap_select_dmi = _bscan_tunnel_nested_tap_select_dmi;
 static uint32_t bscan_tunnel_nested_tap_select_dmi_num_fields = ARRAY_SIZE(_bscan_tunnel_nested_tap_select_dmi);
 
 static struct scan_field *bscan_tunnel_data_register_select_dmi = _bscan_tunnel_data_register_select_dmi;
 static uint32_t bscan_tunnel_data_register_select_dmi_num_fields = ARRAY_SIZE(_bscan_tunnel_data_register_select_dmi);
+
+static struct scan_field *bscan_tunnel_ujtag_select_dmi1 = _bscan_tunnel_ujtag_select_dmi1;
+static uint32_t bscan_tunnel_ujtag_select_dmi1_num_fields = ARRAY_SIZE(_bscan_tunnel_ujtag_select_dmi1);
+
+static struct scan_field *bscan_tunnel_ujtag_select_dmi2 = _bscan_tunnel_ujtag_select_dmi2;
+static uint32_t bscan_tunnel_ujtag_select_dmi2_num_fields = ARRAY_SIZE(_bscan_tunnel_ujtag_select_dmi2);
 
 struct trigger {
 	uint64_t address;
@@ -285,9 +352,126 @@ void select_dmi_via_bscan(struct target *target)
 	if (bscan_tunnel_type == BSCAN_TUNNEL_DATA_REGISTER)
 		jtag_add_dr_scan(target->tap, bscan_tunnel_data_register_select_dmi_num_fields,
 										bscan_tunnel_data_register_select_dmi, TAP_IDLE);
-	else /* BSCAN_TUNNEL_NESTED_TAP */
+	else if (bscan_tunnel_type == BSCAN_TUNNEL_NESTED_TAP)
 		jtag_add_dr_scan(target->tap, bscan_tunnel_nested_tap_select_dmi_num_fields,
 										bscan_tunnel_nested_tap_select_dmi, TAP_IDLE);
+	else if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, bscan_tunnel_ujtag_select_dmi1_num_fields,
+										bscan_tunnel_ujtag_select_dmi1, TAP_IDLE);
+		jtag_add_dr_scan(target->tap, bscan_tunnel_ujtag_select_dmi2_num_fields,
+										bscan_tunnel_ujtag_select_dmi2, TAP_IDLE);
+	}
+}
+
+#include <helper/jep106.h>
+uint32_t idcode_scan_via_bscan(struct target *target, uint32_t out)
+{
+	/* On BSCAN TAP: Select IR=USER4, issue tunneled IR scan via BSCAN TAP's DR */
+	uint8_t out_value[5] = {0};
+	uint8_t in_value[5] = {0};
+
+	buf_set_u32(out_value, 0, 32, out);
+	struct scan_field tunneled_ir[7] = {};
+	struct scan_field tunneled_dr[9] = {};
+
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		tunneled_ir[0].num_bits = 3;
+		tunneled_ir[0].out_value = bscan_five;
+		tunneled_ir[0].in_value = NULL;
+
+		tunneled_ir[1].num_bits = 5;
+		tunneled_ir[1].out_value = bscan_six;
+		tunneled_ir[1].in_value = NULL;
+
+		tunneled_ir[2].num_bits = 6;
+		tunneled_ir[2].out_value = bscan_five;
+		tunneled_ir[2].in_value = NULL;
+
+		tunneled_ir[3].num_bits = 5;
+		tunneled_ir[3].out_value = bscan_one;
+		tunneled_ir[3].in_value = NULL;
+
+		tunneled_ir[4].num_bits = 3;
+		tunneled_ir[4].out_value = bscan_one;
+		tunneled_ir[4].in_value = NULL;
+
+		tunneled_ir[5].num_bits = 1;
+		tunneled_ir[5].out_value = bscan_zero;
+		tunneled_ir[5].in_value = NULL;
+
+		tunneled_ir[6].num_bits = 15;
+		tunneled_ir[6].out_value = bscan_exit;
+		tunneled_ir[6].in_value = NULL;
+
+		tunneled_dr[0].num_bits = 3;
+		tunneled_dr[0].out_value = bscan_three;
+		tunneled_dr[0].in_value = NULL;
+
+		tunneled_dr[1].num_bits = 3;
+		tunneled_dr[1].out_value = bscan_one;
+		tunneled_dr[1].in_value = NULL;
+
+		tunneled_dr[2].num_bits = 6;
+		tunneled_dr[2].out_value = bscan_thirty_two;
+		tunneled_dr[2].in_value = NULL;
+
+		tunneled_dr[3].num_bits = 32 + 1;
+		tunneled_dr[3].out_value = out_value;
+		tunneled_dr[3].in_value = in_value;
+
+		tunneled_dr[4].num_bits = 3;
+		tunneled_dr[4].out_value = bscan_one;
+		tunneled_dr[4].in_value = NULL;
+
+		tunneled_dr[5].num_bits = 1;
+		tunneled_dr[5].out_value = bscan_zero;
+		tunneled_dr[5].in_value = NULL;
+
+		tunneled_dr[6].num_bits = 9;
+		tunneled_dr[6].out_value = bscan_zero;
+		tunneled_dr[6].in_value = NULL;
+
+		tunneled_dr[7].num_bits = 3;
+		tunneled_dr[7].out_value = bscan_three;
+		tunneled_dr[7].in_value = NULL;
+
+		tunneled_dr[8].num_bits = 3;
+		tunneled_dr[8].out_value = bscan_three;
+		tunneled_dr[8].in_value = NULL;
+
+	}
+	jtag_add_ir_scan(target->tap, &select_user4, TAP_IDLE);
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, 6, &tunneled_ir[0], TAP_IDLE);
+		jtag_add_dr_scan(target->tap, 1, &tunneled_ir[6], TAP_IDLE);
+	}
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, 6, &tunneled_dr[0], TAP_IDLE);
+		jtag_add_dr_scan(target->tap, 3, &tunneled_dr[6], TAP_IDLE);
+	}
+
+	int retval = jtag_execute_queue();
+	if (retval != ERROR_OK) {
+		LOG_ERROR("failed jtag scan: %d", retval);
+		return retval;
+	}
+
+#define _EXTRACT_MFG(X)  (((X) & 0xffe) >> 1)
+#define _EXTRACT_PART(X) (((X) & 0xffff000) >> 12)
+#define _EXTRACT_VER(X)  (((X) & 0xf0000000) >> 28)
+
+	/* Note the starting offset is bit 1, not bit 0.  In BSCAN tunnel, there is a one-bit TCK skew between
+	   output and input */
+	uint32_t in = buf_get_u32(in_value, 1, 32);
+	LOG_INFO("UJTAG TUNNELED IDCODE: 0x%08x "
+                "(mfg: 0x%3.3x (%s), part: 0x%4.4x, ver: 0x%1.1x)",
+                in,
+                _EXTRACT_MFG(in),
+                jep106_manufacturer(_EXTRACT_MFG(in)),
+                _EXTRACT_PART(in),
+                _EXTRACT_VER(in));
+
+	return in;
 }
 
 uint32_t dtmcontrol_scan_via_bscan(struct target *target, uint32_t out)
@@ -299,8 +483,8 @@ uint32_t dtmcontrol_scan_via_bscan(struct target *target, uint32_t out)
 	uint8_t in_value[5] = {0};
 
 	buf_set_u32(out_value, 0, 32, out);
-	struct scan_field tunneled_ir[4] = {};
-	struct scan_field tunneled_dr[4] = {};
+	struct scan_field tunneled_ir[7] = {};
+	struct scan_field tunneled_dr[9] = {};
 
 	if (bscan_tunnel_type == BSCAN_TUNNEL_DATA_REGISTER) {
 		tunneled_ir[0].num_bits = 3;
@@ -328,8 +512,7 @@ uint32_t dtmcontrol_scan_via_bscan(struct target *target, uint32_t out)
 		tunneled_dr[3].num_bits = 1;
 		tunneled_dr[3].out_value = bscan_one;
 		tunneled_dr[3].in_value = NULL;
-	} else {
-		/* BSCAN_TUNNEL_NESTED_TAP */
+	} else if (bscan_tunnel_type == BSCAN_TUNNEL_NESTED_TAP) {
 		tunneled_ir[3].num_bits = 3;
 		tunneled_ir[3].out_value = bscan_zero;
 		tunneled_ir[3].in_value = NULL;
@@ -355,10 +538,86 @@ uint32_t dtmcontrol_scan_via_bscan(struct target *target, uint32_t out)
 		tunneled_dr[0].num_bits = 1;
 		tunneled_dr[0].out_value = bscan_one;
 		tunneled_dr[0].in_value = NULL;
+	} else if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		tunneled_ir[0].num_bits = 3;
+		tunneled_ir[0].out_value = bscan_five;
+		tunneled_ir[0].in_value = NULL;
+
+		tunneled_ir[1].num_bits = 5;
+		tunneled_ir[1].out_value = bscan_six;
+		tunneled_ir[1].in_value = NULL;
+
+		tunneled_ir[2].num_bits = 6;
+		tunneled_ir[2].out_value = bscan_five;
+		tunneled_ir[2].in_value = NULL;
+
+		tunneled_ir[3].num_bits = 5;
+		tunneled_ir[3].out_value = bscan_sixteen;
+		tunneled_ir[3].in_value = NULL;
+
+		tunneled_ir[4].num_bits = 3;
+		tunneled_ir[4].out_value = bscan_one;
+		tunneled_ir[4].in_value = NULL;
+
+		tunneled_ir[5].num_bits = 1;
+		tunneled_ir[5].out_value = bscan_zero;
+		tunneled_ir[5].in_value = NULL;
+
+		tunneled_ir[6].num_bits = 15;
+		tunneled_ir[6].out_value = bscan_exit;
+		tunneled_ir[6].in_value = NULL;
+
+		tunneled_dr[0].num_bits = 3;
+		tunneled_dr[0].out_value = bscan_three;
+		tunneled_dr[0].in_value = NULL;
+
+		tunneled_dr[1].num_bits = 3;
+		tunneled_dr[1].out_value = bscan_one;
+		tunneled_dr[1].in_value = NULL;
+
+		tunneled_dr[2].num_bits = 6;
+		tunneled_dr[2].out_value = bscan_thirty_two;
+		tunneled_dr[2].in_value = NULL;
+
+		tunneled_dr[3].num_bits = 32 + 1;
+		tunneled_dr[3].out_value = out_value;
+		tunneled_dr[3].in_value = in_value;
+
+		tunneled_dr[4].num_bits = 3;
+		tunneled_dr[4].out_value = bscan_one;
+		tunneled_dr[4].in_value = NULL;
+
+		tunneled_dr[5].num_bits = 1;
+		tunneled_dr[5].out_value = bscan_zero;
+		tunneled_dr[5].in_value = NULL;
+
+		tunneled_dr[6].num_bits = 9;
+		tunneled_dr[6].out_value = bscan_zero;
+		tunneled_dr[6].in_value = NULL;
+
+		tunneled_dr[7].num_bits = 3;
+		tunneled_dr[7].out_value = bscan_three;
+		tunneled_dr[7].in_value = NULL;
+
+		tunneled_dr[8].num_bits = 3;
+		tunneled_dr[8].out_value = bscan_three;
+		tunneled_dr[8].in_value = NULL;
+
 	}
 	jtag_add_ir_scan(target->tap, &select_user4, TAP_IDLE);
-	jtag_add_dr_scan(target->tap, ARRAY_SIZE(tunneled_ir), tunneled_ir, TAP_IDLE);
-	jtag_add_dr_scan(target->tap, ARRAY_SIZE(tunneled_dr), tunneled_dr, TAP_IDLE);
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, 6, &tunneled_ir[0], TAP_IDLE);
+		jtag_add_dr_scan(target->tap, 1, &tunneled_ir[6], TAP_IDLE);
+	} else {
+		jtag_add_dr_scan(target->tap, 4, tunneled_ir, TAP_IDLE);
+	}
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, 6, &tunneled_dr[0], TAP_IDLE);
+		jtag_add_dr_scan(target->tap, 3, &tunneled_dr[6], TAP_IDLE);
+	} else {
+		jtag_add_dr_scan(target->tap, 4, tunneled_dr, TAP_IDLE);
+	}
+
 	select_dmi_via_bscan(target);
 
 	int retval = jtag_execute_queue();
@@ -379,6 +638,9 @@ static uint32_t dtmcontrol_scan(struct target *target, uint32_t out)
 	struct scan_field field;
 	uint8_t in_value[4];
 	uint8_t out_value[4] = { 0 };
+
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG)
+		idcode_scan_via_bscan(target, 0);
 
 	if (bscan_tunnel_ir_width != 0)
 		return dtmcontrol_scan_via_bscan(target, out);
@@ -458,8 +720,11 @@ static int riscv_init_target(struct command_context *cmd_ctx,
 		bscan_tunneled_ir_width[0] = bscan_tunnel_ir_width;
 		if (bscan_tunnel_type == BSCAN_TUNNEL_DATA_REGISTER)
 			bscan_tunnel_data_register_select_dmi[1].num_bits = bscan_tunnel_ir_width;
-		else /* BSCAN_TUNNEL_NESTED_TAP */
+		else if (bscan_tunnel_type == BSCAN_TUNNEL_NESTED_TAP)
 			bscan_tunnel_nested_tap_select_dmi[2].num_bits = bscan_tunnel_ir_width;
+		else if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+			bscan_tunnel_nested_tap_select_dmi[2].num_bits = bscan_tunnel_ir_width;
+		}
 	}
 
 	riscv_semihosting_init(target);
@@ -2786,6 +3051,9 @@ COMMAND_HANDLER(riscv_use_bscan_tunnel)
 		LOG_INFO("Nested Tap based Bscan Tunnel Selected");
 	else if (tunnel_type == BSCAN_TUNNEL_DATA_REGISTER)
 		LOG_INFO("Simple Register based Bscan Tunnel Selected");
+	else if (tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		LOG_INFO("UJTAG based Bscan Tunnel Selected");
+	}
 	else
 		LOG_INFO("Invalid Tunnel type selected ! : selecting default Nested Tap Type");
 
@@ -4433,8 +4701,7 @@ void riscv_add_bscan_tunneled_scan(struct target *target, struct scan_field *fie
 
 		ctxt->tunneled_dr[0].num_bits = 3;
 		ctxt->tunneled_dr[0].out_value = bscan_zero;
-	} else {
-		/* BSCAN_TUNNEL_NESTED_TAP */
+	} else if (bscan_tunnel_type == BSCAN_TUNNEL_NESTED_TAP) {
 		ctxt->tunneled_dr[0].num_bits = 1;
 		ctxt->tunneled_dr[0].out_value = bscan_one;
 		ctxt->tunneled_dr[1].num_bits = 7;
@@ -4447,6 +4714,41 @@ void riscv_add_bscan_tunneled_scan(struct target *target, struct scan_field *fie
 		ctxt->tunneled_dr[2].in_value = field->in_value;
 		ctxt->tunneled_dr[3].num_bits = 3;
 		ctxt->tunneled_dr[3].out_value = bscan_zero;
+	} else if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+
+		ctxt->tunneled_dr[0].num_bits = 3;
+		ctxt->tunneled_dr[0].out_value = bscan_three;
+
+		ctxt->tunneled_dr[1].num_bits = 3;
+		ctxt->tunneled_dr[1].out_value = bscan_one;
+
+		ctxt->tunneled_dr[2].num_bits = 6;
+		ctxt->tunneled_dr_width = field->num_bits;
+		ctxt->tunneled_dr[2].out_value = &ctxt->tunneled_dr_width;
+
+		/* for BSCAN tunnel, there is a one-TCK skew between shift in and shift out, so
+		   scanning num_bits + 1, and then will right shift the input field after executing the queues */
+		ctxt->tunneled_dr[3].num_bits = field->num_bits + 1;
+		ctxt->tunneled_dr[3].out_value = field->out_value;
+		ctxt->tunneled_dr[3].in_value = field->in_value;
+
+		ctxt->tunneled_dr[4].num_bits = 3;
+		ctxt->tunneled_dr[4].out_value = bscan_one;
+
+		ctxt->tunneled_dr[5].num_bits = 1;
+		ctxt->tunneled_dr[5].out_value = bscan_zero; // goto idle
+
+		ctxt->tunneled_dr[6].num_bits = 9;
+		ctxt->tunneled_dr[6].out_value = bscan_zero;
+
+		ctxt->tunneled_dr[7].num_bits = 6;
+		ctxt->tunneled_dr[7].out_value = bscan_twenty_seven; // 01'1011
 	}
-	jtag_add_dr_scan(target->tap, ARRAY_SIZE(ctxt->tunneled_dr), ctxt->tunneled_dr, TAP_IDLE);
+
+	if (bscan_tunnel_type == BSCAN_TUNNEL_UJTAG) {
+		jtag_add_dr_scan(target->tap, 6, ctxt->tunneled_dr, TAP_IDLE);
+		jtag_add_dr_scan(target->tap, 2, &ctxt->tunneled_dr[6], TAP_IDLE);
+	} else {
+		jtag_add_dr_scan(target->tap, 4, ctxt->tunneled_dr, TAP_IDLE);
+	}
 }

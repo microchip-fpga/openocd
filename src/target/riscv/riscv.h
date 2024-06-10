@@ -233,7 +233,7 @@ COMMAND_HELPER(riscv_print_info_line, const char *section, const char *key,
 
 typedef struct {
 	uint8_t tunneled_dr_width;
-	struct scan_field tunneled_dr[4];
+	struct scan_field tunneled_dr[8];
 } riscv_bscan_tunneled_scan_context_t;
 
 typedef struct {
@@ -281,7 +281,7 @@ extern struct scan_field select_idcode;
 
 extern struct scan_field *bscan_tunneled_select_dmi;
 extern uint32_t bscan_tunneled_select_dmi_num_fields;
-typedef enum { BSCAN_TUNNEL_NESTED_TAP, BSCAN_TUNNEL_DATA_REGISTER } bscan_tunnel_type_t;
+typedef enum { BSCAN_TUNNEL_NESTED_TAP, BSCAN_TUNNEL_DATA_REGISTER, BSCAN_TUNNEL_UJTAG } bscan_tunnel_type_t;
 extern int bscan_tunnel_ir_width;
 
 uint32_t dtmcontrol_scan_via_bscan(struct target *target, uint32_t out);
