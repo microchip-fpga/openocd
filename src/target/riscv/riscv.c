@@ -2169,7 +2169,7 @@ static int riscv_run_algorithm(struct target *target, int num_mem_params,
 
 	/* Run algorithm */
 	LOG_DEBUG("resume at 0x%" TARGET_PRIxADDR, entry_point);
-	if (riscv_resume(target, 0, entry_point, 0, 0, true) != ERROR_OK)
+	if (riscv_resume(target, 0, entry_point, 0, 0, false) != ERROR_OK)
 		return ERROR_FAIL;
 
 	int64_t start = timeval_ms();
